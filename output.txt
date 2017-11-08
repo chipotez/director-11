@@ -1,0 +1,336 @@
+cat /proc/cpuinfo | grep vmx
+yum groupinstall gnome-desktop x11 fonts -y
+yum install kvm python-virtinst qemu-kvm qemu-img virt-manager libvirt libvirt-python python-virtinst libvirt-client virt-who -y
+systemctl set-default graphical.target
+
+[root@kvm images]# ifconfig 
+int0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.17.125.141  netmask 255.255.255.192  broadcast 10.17.125.191
+        inet6 fe80::ec4:7aff:fe66:2ff8  prefixlen 64  scopeid 0x20<link>
+        ether 0c:c4:7a:66:2f:f8  txqueuelen 1000  (Ethernet)
+        RX packets 772  bytes 1064687 (1.0 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 332  bytes 25427 (24.8 KiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+int1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 174.36.11.226  netmask 255.255.255.248  broadcast 174.36.11.231
+        inet6 fe80::ec4:7aff:fe66:2ff9  prefixlen 64  scopeid 0x20<link>
+        ether 0c:c4:7a:66:2f:f9  txqueuelen 1000  (Ethernet)
+        RX packets 408241  bytes 585672192 (558.5 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 96530  bytes 6496312 (6.1 MiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+
+[root@kvm images]# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0         174.36.11.225   0.0.0.0         UG    0      0        0 int1
+10.0.0.0        10.17.125.129   255.0.0.0       UG    0      0        0 int0
+10.17.125.128   0.0.0.0         255.255.255.192 U     0      0        0 int0
+161.26.0.0      10.17.125.129   255.255.0.0     UG    0      0        0 int0
+169.254.0.0     0.0.0.0         255.255.0.0     U     1002   0        0 int0
+169.254.0.0     0.0.0.0         255.255.0.0     U     1003   0        0 int1
+174.36.11.224   0.0.0.0         255.255.255.248 U     0      0        0 int1
+192.168.122.0   0.0.0.0         255.255.255.0   U     0      0        0 virbr0
+
+[root@kvm network-scripts]# cat route-int0 
+10.0.0.0/8 via 10.17.125.129
+161.26.0.0/16 via 10.17.125.129
+[root@kvm network-scripts]# 
+
+[root@kvm network-scripts]# ip r s
+default via 174.36.11.225 dev int1 
+10.0.0.0/8 via 10.17.125.129 dev int0 
+10.17.125.128/26 dev int0 proto kernel scope link src 10.17.125.141 
+161.26.0.0/16 via 10.17.125.129 dev int0 
+169.254.0.0/16 dev int0 scope link metric 1002 
+169.254.0.0/16 dev int1 scope link metric 1003 
+174.36.11.224/29 dev int1 proto kernel scope link src 174.36.11.226 
+192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 
+
+============================= kvm
+
+[root@kvm network-scripts]# cat > /tmp/provisioning.xml <<EOF
+> <network>
+>   <name>provisioning</name>
+>   <ip address="172.16.0.254" netmask="255.255.255.0"/>
+> </network>
+> EOF
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# virsh net-define /tmp/provisioning.xml
+La red provisioning se encuentra definida desde /tmp/provisioning.xml
+
+[root@kvm network-scripts]# virsh net-autostart provisioning
+La red provisioning ha sido marcada para iniciarse automáticamente
+
+[root@kvm network-scripts]# virsh net-start provisioning
+La red provisioning se ha iniciado
+
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# virsh net-list
+ Nombre               Estado     Inicio automático Persistente
+----------------------------------------------------------
+ default              activo     si            si
+ provisioning         activo     si            si
+
+[root@kvm network-scripts]# 
+
+
+
+
+
+[root@kvm network-scripts]# cat > /tmp/trunk.xml <<EOF
+> <network>
+>   <name>trunk</name>
+>   <forward mode='nat'>
+>     <nat>
+>       <port start='1024' end='65535'/>
+>     </nat>
+>   </forward>
+>   <ip address="192.168.0.1" netmask="255.255.255.0"/>
+> </network>
+> EOF
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# virsh net-define trunk.xml
+Error:Falló al abrir el disco 'trunk.xml': No existe el fichero o el directorio
+
+[root@kvm network-scripts]# virsh net-autostart trunk
+Error:Falló al obtener la red 'trunk'
+Error:Network not found: no network with matching name 'trunk'
+
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# virsh net-define /tmp/trunk.xml
+La red trunk se encuentra definida desde /tmp/trunk.xml
+
+[root@kvm network-scripts]# virsh net-autostart trunk
+La red trunk ha sido marcada para iniciarse automáticamente
+
+[root@kvm network-scripts]# virsh net-start trunk
+La red trunk se ha iniciado
+
+
+
+
+
+
+==============================00 
+
+
+
+[root@kvm network-scripts]# # Add firewall rules
+[root@kvm network-scripts]# firewall-cmd --new-zone=virt --permanent
+FirewallD is not running
+[root@kvm network-scripts]# systemctl start firewalld
+[root@kvm network-scripts]# firewall-cmd --new-zone=virt --permanent
+success
+[root@kvm network-scripts]# firewall-cmd --zone=virt --add-source=172.16.0.0/24 --permanent
+success
+[root@kvm network-scripts]# firewall-cmd --zone=virt --add-source=192.168.0.0/24 --permanent
+success
+[root@kvm network-scripts]# firewall-cmd --zone=virt --set-target=ACCEPT --permanent
+success
+[root@kvm network-scripts]# firewall-cmd --reload
+success
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# iptables -L -n -v
+Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     udp  --  virbr1 *       0.0.0.0/0            0.0.0.0/0            udp dpt:53
+    0     0 ACCEPT     tcp  --  virbr1 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:53
+    0     0 ACCEPT     udp  --  virbr1 *       0.0.0.0/0            0.0.0.0/0            udp dpt:67
+    0     0 ACCEPT     tcp  --  virbr1 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:67
+    0     0 ACCEPT     udp  --  virbr2 *       0.0.0.0/0            0.0.0.0/0            udp dpt:53
+    0     0 ACCEPT     tcp  --  virbr2 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:53
+    0     0 ACCEPT     udp  --  virbr2 *       0.0.0.0/0            0.0.0.0/0            udp dpt:67
+    0     0 ACCEPT     tcp  --  virbr2 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:67
+    0     0 ACCEPT     udp  --  virbr0 *       0.0.0.0/0            0.0.0.0/0            udp dpt:53
+    0     0 ACCEPT     tcp  --  virbr0 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:53
+    0     0 ACCEPT     udp  --  virbr0 *       0.0.0.0/0            0.0.0.0/0            udp dpt:67
+    0     0 ACCEPT     tcp  --  virbr0 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:67
+   88  6508 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    0     0 ACCEPT     all  --  lo     *       0.0.0.0/0            0.0.0.0/0           
+    1    40 INPUT_direct  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    1    40 INPUT_ZONES_SOURCE  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    1    40 INPUT_ZONES  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate INVALID
+    1    40 REJECT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-host-prohibited
+
+Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     all  --  virbr1 virbr1  0.0.0.0/0            0.0.0.0/0           
+    0     0 REJECT     all  --  *      virbr1  0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  virbr1 *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
+    0     0 ACCEPT     all  --  *      virbr2  0.0.0.0/0            192.168.0.0/24       ctstate RELATED,ESTABLISHED
+    0     0 ACCEPT     all  --  virbr2 *       192.168.0.0/24       0.0.0.0/0           
+    0     0 ACCEPT     all  --  virbr2 virbr2  0.0.0.0/0            0.0.0.0/0           
+    0     0 REJECT     all  --  *      virbr2  0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  virbr2 *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
+    0     0 ACCEPT     all  --  *      virbr0  0.0.0.0/0            192.168.122.0/24     ctstate RELATED,ESTABLISHED
+    0     0 ACCEPT     all  --  virbr0 *       192.168.122.0/24     0.0.0.0/0           
+    0     0 ACCEPT     all  --  virbr0 virbr0  0.0.0.0/0            0.0.0.0/0           
+    0     0 REJECT     all  --  *      virbr0  0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
+    0     0 REJECT     all  --  virbr0 *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+    0     0 ACCEPT     all  --  lo     *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FORWARD_direct  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FORWARD_IN_ZONES_SOURCE  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FORWARD_IN_ZONES  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FORWARD_OUT_ZONES_SOURCE  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FORWARD_OUT_ZONES  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0            ctstate INVALID
+    0     0 REJECT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-host-prohibited
+
+Chain OUTPUT (policy ACCEPT 63 packets, 5452 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     udp  --  *      virbr1  0.0.0.0/0            0.0.0.0/0            udp dpt:68
+    0     0 ACCEPT     udp  --  *      virbr2  0.0.0.0/0            0.0.0.0/0            udp dpt:68
+    0     0 ACCEPT     udp  --  *      virbr0  0.0.0.0/0            0.0.0.0/0            udp dpt:68
+   67  5804 OUTPUT_direct  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain FORWARD_IN_ZONES (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDI_public  all  --  +      *       0.0.0.0/0            0.0.0.0/0           [goto] 
+
+Chain FORWARD_IN_ZONES_SOURCE (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDI_virt  all  --  *      *       172.16.0.0/24        0.0.0.0/0           
+    0     0 FWDI_virt  all  --  *      *       192.168.0.0/24       0.0.0.0/0           
+
+Chain FORWARD_OUT_ZONES (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDO_public  all  --  *      +       0.0.0.0/0            0.0.0.0/0           [goto] 
+
+Chain FORWARD_OUT_ZONES_SOURCE (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDO_virt  all  --  *      *       0.0.0.0/0            172.16.0.0/24       
+    0     0 FWDO_virt  all  --  *      *       0.0.0.0/0            192.168.0.0/24      
+
+Chain FORWARD_direct (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDI_public (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDI_public_log  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDI_public_deny  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDI_public_allow  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     icmp --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain FWDI_public_allow (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDI_public_deny (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDI_public_log (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDI_virt (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDI_virt_log  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDI_virt_deny  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDI_virt_allow  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain FWDI_virt_allow (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDI_virt_deny (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDI_virt_log (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDO_public (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDO_public_log  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDO_public_deny  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDO_public_allow  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain FWDO_public_allow (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDO_public_deny (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDO_public_log (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDO_virt (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 FWDO_virt_log  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDO_virt_deny  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 FWDO_virt_allow  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain FWDO_virt_allow (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDO_virt_deny (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain FWDO_virt_log (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain INPUT_ZONES (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    1    40 IN_public  all  --  +      *       0.0.0.0/0            0.0.0.0/0           [goto] 
+
+Chain INPUT_ZONES_SOURCE (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 IN_virt    all  --  *      *       172.16.0.0/24        0.0.0.0/0           
+    0     0 IN_virt    all  --  *      *       192.168.0.0/24       0.0.0.0/0           
+
+Chain INPUT_direct (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain IN_public (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    1    40 IN_public_log  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    1    40 IN_public_deny  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    1    40 IN_public_allow  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     icmp --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain IN_public_allow (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:22 ctstate NEW
+
+Chain IN_public_deny (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain IN_public_log (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain IN_virt (2 references)
+ pkts bytes target     prot opt in     out     source               destination         
+    0     0 IN_virt_log  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 IN_virt_deny  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 IN_virt_allow  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0           
+
+Chain IN_virt_allow (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain IN_virt_deny (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain IN_virt_log (1 references)
+ pkts bytes target     prot opt in     out     source               destination         
+
+Chain OUTPUT_direct (1 references)
+ pkts bytes target     prot opt in     out     source               destination 
+
+
+
+
