@@ -1,6 +1,6 @@
 cat /proc/cpuinfo | grep vmx
 yum groupinstall gnome-desktop x11 fonts -y
-yum install kvm python-virtinst qemu-kvm qemu-img virt-manager libvirt libvirt-python python-virtinst libvirt-client virt-who -y
+yum install kvm python-virtinst qemu-kvm qemu-img virt-manager libvirt libvirt-python python-virtinst libvirt-client virt-who  libguestfs-tools-c virt-install -y
 systemctl set-default graphical.target
 
 [root@kvm images]# ifconfig 
@@ -330,6 +330,94 @@ Chain IN_virt_log (1 references)
 
 Chain OUTPUT_direct (1 references)
  pkts bytes target     prot opt in     out     source               destination 
+
+
+========================================================== 
+
+[root@kvm network-scripts]# # Define config files for network interfaces on the undercloud node
+[root@kvm network-scripts]# cat > /tmp/ifcfg-eth0 << EOF
+> DEVICE="eth0"
+> BOOTPROTO="none"
+> ONBOOT="no"
+> TYPE="Ethernet"
+> NM_CONTROLLED="no"
+> EOF
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# cat > /tmp/ifcfg-eth1 << EOF
+> DEVICE="eth1"
+> BOOTPROTO="none"
+> ONBOOT="yes"
+> TYPE="Ethernet"
+> IPADDR=192.168.0.253
+> NETMASK=255.255.255.0
+> GATEWAY=192.168.0.1
+> NM_CONTROLLED="no"
+> DNS1=8.8.8.8
+> EOF
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# 
+[root@kvm network-scripts]# ls /tmp/
+anaconda.log     ifcfg.log         program.log         systemd-private-f6ef2ac2378b401297eb9316f51b7550-chronyd.service-fIZHLI       trunk.xml
+hsperfdata_root  ks-script-6VYc_5  provisioning.xml    systemd-private-f6ef2ac2378b401297eb9316f51b7550-colord.service-mwTfMw        yum.log
+ifcfg-eth0       ks-script-w0cfHN  sensitive-info.log  systemd-private-f6ef2ac2378b401297eb9316f51b7550-cups.service-WoEnJG
+ifcfg-eth1       packaging.log     storage.log         systemd-private-f6ef2ac2378b401297eb9316f51b7550-rtkit-daemon.service-RuTKUw
+[root@kvm network-scripts]# mkdir /files
+[root@kvm network-scripts]# cp /tmp/trunk.xml /tmp/provisioning.xml  /tmp/ifcfg* /files/
+[root@kvm network-scripts]# ls /files/
+ifcfg-eth0  ifcfg-eth1  ifcfg.log  provisioning.xml  trunk.xml
+
+
+[root@kvm images]# qemu-img create -f qcow2 undercloud.qcow2 60G
+Formatting 'undercloud.qcow2', fmt=qcow2 size=64424509440 encryption=off cluster_size=65536 lazy_refcounts=off
+
+[root@kvm images]# virt-resize --expand /dev/sda1 rhel-server-7.4-x86_64-kvm.qcow2 undercloud.qcow2 
+[   0.0] Examinando rhel-server-7.4-x86_64-kvm.qcow2
+◓ 25% ⟦▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════⟧ --:--
+ 100% ⟦▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒⟧ --:--
+**********
+
+Summary of changes:
+
+virt-resize: aviso: unknown/unavailable method for expanding the xfs 
+filesystem on /dev/sda1
+/dev/sda1: Se cambiará el tamaño de la partición de 7.8G a 60.0G.
+
+**********
+[  25.4] Setting up initial partition table on undercloud.qcow2
+[  25.6] Copiando /dev/sda1
+ 100% ⟦▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒⟧ 00:00
+
+Resize operation completed with no errors.  Before deleting the old disk, 
+carefully check that the resized disk boots and works correctly.
+[root@kvm images]# 
+
+
+
+=================================0 
+
+[root@kvm images]# virt-customize -a undercloud.qcow2 --hostname undercloud.themike.systems --root-password password:redhat --uninstall cloud-init \
+>   --selinux-relabel \
+>   --copy-in /tmp/ifcfg-eth0:/etc/sysconfig/network-scripts/ \
+>   --copy-in /tmp/ifcfg-eth1:/etc/sysconfig/network-scripts/
+[   0.0] Examinando el invitado ...
+[   2.4] Setting a random seed
+[   2.4] Setting the hostname: undercloud.themike.systems
+[   2.4] Uninstalling packages: cloud-init
+[   5.6] Copiando: /tmp/ifcfg-eth0 a /etc/sysconfig/network-scripts/
+[   5.6] Copiando: /tmp/ifcfg-eth1 a /etc/sysconfig/network-scripts/
+[   5.6] Setting passwords
+[   6.9] SELinux relabelling
+[  15.8] Acabando
+
+======================================= 
+
+
+
+
+
+
+
+
 
 
 
